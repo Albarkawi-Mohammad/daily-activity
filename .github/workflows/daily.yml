@@ -1,0 +1,48 @@
+name: Daily GitHub Activity
+
+on:
+  schedule:
+    - cron: '23 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-activity
+  cancel-in-progress: false
+
+jobs:
+  daily-update:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Update activity log and push
+        shell: bash
+        env:
+          AUTHOR_NAME: Albarkawi-Mohammad
+          AUTHOR_EMAIL: 171579544+Albarkawi-Mohammad@users.noreply.github.com
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          entry="Automated update: $(date -u +'%Y-%m-%d') UTC"
+          touch activity.log
+          if grep -Fxq "$entry" activity.log; then
+            echo "Today's automated update already exists."
+            exit 0
+          fi
+          printf '%s\n' "$entry" >> activity.log
+          git config user.name "$AUTHOR_NAME"
+          git config user.email "$AUTHOR_EMAIL"
+          git add -- activity.log
+          git commit -m "chore: daily automated update"
+          git pull --rebase origin "$DEFAULT_BRANCH"
+          git push origin "HEAD:$DEFAULT_BRANCH"
